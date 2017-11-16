@@ -546,6 +546,12 @@
             <version>${dep.circe.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.microsoft.azure</groupId>
+            <artifactId>azure-cosmosdb-spark_2.2.0_2.11</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
         <!-- Tests -->
 
         <dependency>
