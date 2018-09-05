@@ -115,14 +115,14 @@ object CAPSSession extends Serializable {
   def local(settings: (String, String)*): CAPSSession = {
     val conf = new SparkConf(true)
     conf.set("spark.sql.codegen.wholeStage", "true")
-    conf.set("spark.sql.shuffle.partitions", "12")
-    conf.set("spark.default.parallelism", "8")
+    conf.set("spark.sql.shuffle.partitions", "1")
+    conf.set("spark.default.parallelism", "1")
     conf.setAll(settings)
 
     val session = SparkSession
       .builder()
       .config(conf)
-      .master("local[*]")
+      .master("local[1]")
       .appName(s"caps-local-${UUID.randomUUID()}")
       .getOrCreate()
     session.sparkContext.setLogLevel("error")
