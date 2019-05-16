@@ -37,6 +37,9 @@ import scala.language.implicitConversions
 
 class RecordHeaderEntryTest extends BaseTestSuite {
 
+  implicit val columnNameGenerator: List[RecordHeaderEntry] => String
+  = (l: List[RecordHeaderEntry]) => l.map(_.columnName).mkString(".")
+
   val n: Var = Var("n")(CTNode("A", "B"))
   val m: Var = Var("m")(CTNode("A", "B"))
   val o: Var = Var("o")(CTNode)
@@ -49,498 +52,477 @@ class RecordHeaderEntryTest extends BaseTestSuite {
 
   val countN = CountStar
 
+  val nId: Identity = Identity(n)
+  val rId: Identity = Identity(r)
   val nLabelA: HasLabel = HasLabel(n, Label("A"))
   val nLabelB: HasLabel = HasLabel(n, Label("B"))
   val nPropFoo: Property = EntityProperty(n, PropertyKey("foo"))(CTString)
   val mPropFoo: Property = EntityProperty(m, PropertyKey("foo"))(CTString)
-
-  val nEntries: Seq[RecordHeaderEntry] = Seq(
-    ComplexEntry("n", n, Seq(
-      SimpleEntry(":A", nLabelA),
-      SimpleEntry(":B", nLabelB),
-      SimpleEntry("foo", nPropFoo)
-    ))
-  )
+  val oPropFoo: Property = EntityProperty(o, PropertyKey("foo"))(CTString)
 
 
-//  val mExprs: Set[Expr] = nExprs.map(_.withOwner(m))
-//  val oExprs: Set[Expr] = nExprs.map(_.withOwner(o))
   val nodeListExprs: Set[Expr] = Set(nodeListSegment) ++ Set(nLabelA, nLabelB, nPropFoo).map(_.withOwner(nodeListSegment))
 
   val rStart: StartNode = StartNode(r)(CTNode)
   val rEnd: EndNode = EndNode(r)(CTNode)
   val rRelType: HasType = HasType(r, RelType("R"))
   val rPropFoo: Property = EntityProperty(r, PropertyKey("foo"))(CTString)
-  val rExprs: Set[Expr] = Set(r, rStart, rEnd, rRelType, rPropFoo)
-  val relListExprs: Set[Expr] = Set(relListSegment) ++ Set(rStart, rEnd, rRelType, rPropFoo).map(_.withOwner(relListSegment))
 
-  val nHeader: RecordHeader2 = RecordHeader2(nEntries)
-//  val mHeader: RecordHeader = RecordHeader.empty.withExprs(mExprs)
-//  val rHeader: RecordHeader = RecordHeader.empty.withExprs(rExprs)
-//  val nodeListHeader: RecordHeader = RecordHeader.empty.withExprs(nodeListExprs)
-//  val relListHeader: RecordHeader = RecordHeader.empty.withExprs(relListExprs)
+  val nHeader: RecordHeader2 = RecordHeader2.empty.withExpr(n).withExpr(nId).withExpr(nLabelA).withExpr(nLabelB).withExpr(nPropFoo)
+  val mHeader: RecordHeader2 = RecordHeader2.empty.withExpr(m).withExpr(nId.withOwner(m)).withExpr(nLabelA.withOwner(m)).withExpr(nLabelB.withOwner(m)).withExpr(mPropFoo)
+  val oHeader: RecordHeader2 = RecordHeader2.empty.withExpr(o).withExpr(nId.withOwner(o)).withExpr(nLabelA.withOwner(o)).withExpr(nLabelB.withOwner(o)).withExpr(oPropFoo)
+  val rHeader: RecordHeader2 = RecordHeader2.empty.withExpr(r).withExpr(rId).withExpr(rStart).withExpr(rEnd).withExpr(rRelType).withExpr(rPropFoo)
+  val relListHeader: RecordHeader2 = RecordHeader2.empty.withExpr(relList).withExpr(rStart.withOwner(relList)).withExpr(rEnd.withOwner(relList)).withExpr(rRelType.withOwner(relList)).withExpr(rPropFoo.withOwner(relList))
+
+  val nEntries = nHeader.getEntryByExpr(n)
+  val mEntries = mHeader.getEntryByExpr(m)
+  val oEntries = oHeader.getEntryByExpr(o)
+  val rEntries = rHeader.getEntryByExpr(r)
+
+  val nExprs = nEntries.flatMap(_.expressions).toSet
+  val mExprs = mEntries.flatMap(_.expressions).toSet
+  val oExprs = oEntries.flatMap(_.expressions).toSet
+  val rExprs = rEntries.flatMap(_.expressions).toSet
 
   it("can return all contained expressions") {
-    nHeader.expressions should equalWithTracing(Seq(n, nLabelA, nLabelB, nPropFoo))
+    val exprs = nHeader.expressions
+    exprs.size should equal(5)
+    exprs should equalWithTracing(Set(n, nId, nLabelA, nLabelB, nPropFoo))
   }
 
-//  it("should return the same header if added expressions are empty") {
-//    nHeader.withExprs(Set.empty) should equal(nHeader)
-//  }
-//
-//  it("can return all vars") {
-//    nHeader.vars should equalWithTracing(Set(n))
-//    rHeader.vars should equalWithTracing(Set(r))
-//    val s = Var("s")(nPropFoo.cypherType)
-//    nHeader.withAlias(nPropFoo as s).vars should equalWithTracing(Set(n, s))
-//  }
-//
-//  it("can return vars that are not present in the header, but own an expression in the header") {
-//    RecordHeader.empty.withExpr(nodeListSegment).vars should equal(Set(nodeList))
-//  }
-//
-//  it("can return all return items") {
-//    nHeader.returnItems should equal(Set(n))
-//    val header = nHeader ++ relListHeader
-//    header.returnItems should equal(Set(n, nodeList))
-//  }
-//
+  it("should return the same header if added expressions are empty") {
+    nHeader.withExprs(Set.empty) should equal(nHeader)
+  }
+
+  it("can return all vars") {
+    nHeader.vars should equalWithTracing(Set(n))
+    rHeader.vars should equalWithTracing(Set(r))
+    val s = Var("s")(nPropFoo.cypherType)
+    nHeader.withAlias(nPropFoo as s).vars should equalWithTracing(Set(n, s))
+  }
+
+  it("can return all return items") {
+    nHeader.returnItems should equal(Set(n))
+    val header = nHeader join relListHeader
+    header.returnItems should equal(Set(n, nodeList))
+  }
+
 //  it("can return all contained columns") {
-//    nHeader.columns should equalWithTracing(nHeader.expressions.map(nHeader.column))
+//    nHeader.columns should equalWithTracing(Set("n"))
 //    nHeader.withAlias(n as m).columns should equalWithTracing(nHeader.expressions.map(nHeader.column))
 //  }
-//
-//  it("can check if an expression is contained") {
-//    nHeader.contains(n) should equal(true)
-//    nHeader.contains(m) should equal(false)
-//  }
-//
-//  it("can check for an empty header") {
-//    nHeader.isEmpty should equal(false)
-//    RecordHeader.empty.isEmpty should equal(true)
-//  }
-//
-//  it("can add an entity expression") {
-//    nHeader.ownedBy(n) should equal(nExprs)
-//  }
-//
-//  it("can add entity expressions without column collisions") {
-//    val underlineHeader = RecordHeader.empty.withExpr(Var("_")()).withExpr(Var(".")(CTAny))
-//    underlineHeader.columns.size should be(2)
-//  }
-//
-//  it("can return all expressions for a given expression") {
-//    nHeader.expressionsFor(n) should equalWithTracing(nExprs)
-//    nHeader.expressionsFor(nPropFoo) should equalWithTracing(Set(nPropFoo))
-//    nHeader.expressionsFor(m) should equalWithTracing(Set.empty)
-//  }
-//
-//  it("can return all expressions for a given column") {
-//    nHeader.expressionsFor(nHeader.column(n)) should equalWithTracing(Set(n))
-//    nHeader.withAlias(n as m).expressionsFor(nHeader.column(n)) should equalWithTracing(Set(n, m))
-//  }
-//
-//  it("can correctly handles AliasExpr using withExpr") {
-//    val header = RecordHeader.empty.withExpr(n).withExpr(n as m)
-//    header.contains(n) shouldBe true
-//    header.contains(m) shouldBe true
-//    header.contains(n as m) shouldBe true
-//  }
-//
-//  it("can add an alias for an entity") {
-//    val withAlias = nHeader.withAlias(n as m)
-//
-//    withAlias.ownedBy(n) should equalWithTracing(nExprs)
-//    withAlias.ownedBy(m) should equalWithTracing(mExprs)
-//  }
-//
-//  it("can add an alias for an entity that already exists but with different CypherType") {
-//    val withAlias = nHeader.withAlias(n as Var(n.name)(CTNode))
-//
-//    withAlias.entityVars.size should be(1)
-//    val entity = withAlias.entityVars.head
-//
-//    entity should equal(n)
-//    entity.cypherType should equal(CTNode)
-//
-//  }
-//
-//  it("can add an alias for a non-entity expression") {
-//    val s = Var("nPropFoo_Alias")(nPropFoo.cypherType)
-//    val t = Var("nPropFoo_Alias")(nPropFoo.cypherType)
-//    val withAlias1 = nHeader.withAlias(nPropFoo as s)
-//    val withAlias2 = withAlias1.withAlias(s as t)
-//
-//    withAlias2.column(s) should equalWithTracing(withAlias2.column(nPropFoo))
-//    withAlias2.column(t) should equalWithTracing(withAlias2.column(nPropFoo))
-//    withAlias2.ownedBy(n) should equalWithTracing(nExprs)
-//    withAlias2.ownedBy(s) should equalWithTracing(Set(s))
-//    withAlias2.ownedBy(t) should equalWithTracing(Set(t))
-//  }
-//
-//  it("can combine simple headers") {
-//    val unionHeader = nHeader ++ mHeader
-//
-//    unionHeader.ownedBy(n) should equalWithTracing(nExprs)
-//    unionHeader.ownedBy(m) should equalWithTracing(mExprs)
-//  }
-//
-//  it("can combine complex headers") {
-//    val p = Var("nPropFoo_Alias")(nPropFoo.cypherType)
-//
-//    val nHeaderWithAlias = nHeader.withAlias(nPropFoo as p)
-//    val mHeaderWithAlias = mHeader.withAlias(m as o)
-//
-//    val unionHeader = nHeaderWithAlias ++ mHeaderWithAlias
-//
-//    unionHeader.column(p) should equal(unionHeader.column(nPropFoo))
-//    unionHeader.ownedBy(n) should equalWithTracing(nExprs)
-//    unionHeader.ownedBy(m) should equalWithTracing(mExprs)
-//    unionHeader.ownedBy(o) should equalWithTracing(oExprs)
-//  }
-//
-//  it("can combine headers with same vars and compatible cypherType") {
-//    Seq(
-//      CTBoolean -> CTBoolean,
-//      CTNode("A") -> CTNode("B"),
-//      CTNode("A") -> CTNode("A", "B"),
-//      CTRelationship("A") -> CTRelationship("B"),
-//      CTRelationship("A") -> CTRelationship("A", "B")
-//    ).foreach {
-//      case (p1Type, p2Type) =>
-//        val p1 = Var("p")(p1Type)
-//        val p2 = Var("p")(p2Type)
-//
-//        val p1Header = RecordHeader.empty.withExpr(p1)
-//        val p2Header = RecordHeader.empty.withExpr(p2)
-//
-//        val unionHeader = p1Header ++ p2Header
-//
-//        unionHeader.expressions.size shouldBe 1
-//        unionHeader.expressions.head.cypherType shouldBe (p1Type join p2Type)
+
+    it("can check if an expression is contained") {
+      nHeader.contains(n) should equal(true)
+      nHeader.contains(m) should equal(false)
+    }
+
+    it("can check for an empty header") {
+      nHeader.isEmpty should equal(false)
+      RecordHeader2.empty.isEmpty should equal(true)
+    }
+
+    it("can add entity expressions without column collisions") {
+      val underlineHeader = RecordHeader2.empty.withExpr(Var("_")()).withExpr(Var(".")(CTAny))
+      underlineHeader.entries.size should be(2)
+    }
+
+    it("can return all expressions for a given expression") {
+      nHeader.expressionsFor(n) should equalWithTracing(nExprs)
+      nHeader.expressionsFor(nPropFoo) should equalWithTracing(Set(nPropFoo))
+      nHeader.expressionsFor(m) should equalWithTracing(Set.empty)
+    }
+
+//    it("can return all expressions for a given column") {
+//      nHeader.expressionsFor(nHeader.column(n)) should equalWithTracing(Set(n))
+//      nHeader.withAlias(n as m).expressionsFor(nHeader.column(n)) should equalWithTracing(Set(n, m))
 //    }
-//  }
+
+  it("can correctly handles AliasExpr using withExpr") {
+    val header = RecordHeader.empty.withExpr(n).withExpr(n as m)
+    header.contains(n) shouldBe true
+    header.contains(m) shouldBe true
+    header.contains(n as m) shouldBe true
+  }
+
+
+  describe("withAlias") {
+    it("can add an alias for an entity") {
+      val withAlias = nHeader.withAlias(n as m)
+      val mEntry = withAlias.getEntryByExpr(m)
+
+      mEntry.expressions should equalWithTracing(Set(n, m))
+      mEntry.inner should equalWithTracing(nEntries.inner)
+    }
+
+    it("can add an alias for an entity that already exists but with different CypherType") {
+      val withAlias = nHeader.withAlias(n as Var(n.name)(CTNode))
+
+      withAlias.vars.size should be(1)
+      val entity = withAlias.vars.head
+
+      entity should equal(n)
+      entity.cypherType should equal(CTNode)
+    }
+
+    it("can add an alias for a non-entity expression") {
+      val s = Var("nPropFoo_Alias_s")(nPropFoo.cypherType)
+      val t = Var("nPropFoo_Alias_t")(nPropFoo.cypherType)
+      val withAlias1 = nHeader.withAlias(nPropFoo as s)
+      val withAlias2 = withAlias1.withAlias(s as t)
+
+      withAlias2.column(s) should equal("nPropFoo_Alias_s")
+      withAlias2.column(t) should equal("nPropFoo_Alias_s")
+
+      withAlias2.getEntryByExpr(n) should equalWithTracing(nEntries)
+      withAlias2.getEntryByExpr(s) should equalWithTracing(RecordHeaderEntry(Set(s,t), "nPropFoo_Alias_s", List.empty))
+      withAlias2.getEntryByExpr(t) should equalWithTracing(RecordHeaderEntry(Set(s,t), "nPropFoo_Alias_s", List.empty))
+    }
+
+    it("can combine simple headers") {
+      val unionHeader = nHeader ++ mHeader
+
+      unionHeader.getEntryByExpr(n) should equalWithTracing(nEntries)
+      unionHeader.getEntryByExpr(m) should equalWithTracing(mEntries)
+    }
+
+    it("can combine complex headers") {
+      val p = Var("nPropFoo_Alias")(nPropFoo.cypherType)
+
+      val nHeaderWithAlias = nHeader.withAlias(nPropFoo as p)
+      val mHeaderWithAlias = mHeader.withAlias(m as o)
+
+      val unionHeader = nHeaderWithAlias ++ mHeaderWithAlias
+
+      unionHeader.column(p) should equal("nPropFoo_Alias")
+
+      unionHeader.getEntryByExpr(n).expressions should equalWithTracing(Set(n))
+      unionHeader.getEntryByExpr(n).inner should equalWithTracing(nEntries.inner)
+
+      unionHeader.getEntryByExpr(m).expressions should equalWithTracing(Set(m, o))
+      unionHeader.getEntryByExpr(m).inner should equalWithTracing(mEntries.inner)
+
+      unionHeader.getEntryByExpr(o).expressions should equalWithTracing(Set(m, o))
+      unionHeader.getEntryByExpr(o).inner should equalWithTracing(mEntries.inner)
+    }
+  }
+
+  it("can combine headers with same vars and compatible cypherType") {
+    Seq(
+      CTBoolean -> CTBoolean,
+      CTNode("A") -> CTNode("B"),
+      CTNode("A") -> CTNode("A", "B"),
+      CTRelationship("A") -> CTRelationship("B"),
+      CTRelationship("A") -> CTRelationship("A", "B")
+    ).foreach {
+      case (p1Type, p2Type) =>
+        val p1 = Var("p")(p1Type)
+        val p2 = Var("p")(p2Type)
+
+        val p1Header = RecordHeader.empty.withExpr(p1)
+        val p2Header = RecordHeader.empty.withExpr(p2)
+
+        val unionHeader = p1Header ++ p2Header
+
+        unionHeader.expressions.size shouldBe 1
+        unionHeader.expressions.head.cypherType shouldBe (p1Type join p2Type)
+    }
+  }
+
+  it("can remove expressions") {
+    nHeader -- nExprs should equal(RecordHeader2.empty)
+    nHeader -- Set(n) should equal(RecordHeader2.empty)
+    //    nHeader -- Set(nPropFoo) should equal(RecordHeader2.empty.withExpr(n).withExpr(nLabelA).withExpr(nLabelB))
+    nHeader -- Set(m) should equal(nHeader)
+  }
+
+  it("can modify alias and original expression") {
+    val prop2 = EntityProperty(n, PropertyKey("bar"))(CTString)
+    val aliasHeader = nHeader.withAlias(n as m)
+    val withNewProp = aliasHeader.withExpr(prop2)
+
+    withNewProp.expressionsFor(n) should equalWithTracing(nExprs + prop2)
+    withNewProp.expressionsFor(m) should equalWithTracing(nExprs - n + m + prop2)
+  }
+
+  it("can return all aliases for an expression") {
+    val s = Var("nPropFoo_Alias")(nPropFoo.cypherType)
+    val t = Var("nPropFoo_Alias")(nPropFoo.cypherType)
+    val aliasHeader = nHeader
+      .withAlias(n as m)
+      .withAlias(nPropFoo as s)
+      .withAlias(s as t)
+
+    aliasHeader.aliasesFor(n) should equalWithTracing(Set(m, n))
+    aliasHeader.aliasesFor(m) should equalWithTracing(Set(m, n))
+    aliasHeader.aliasesFor(s) should equalWithTracing(Set(s, t))
+  }
+
+    it("finds all id expressions") {
+      nHeader.idExpressions should equalWithTracing(Set(nId))
+
+      rHeader.idExpressions should equalWithTracing(Set(rId, rStart, rEnd))
+
+      (nHeader ++ rHeader).idExpressions should equalWithTracing(
+        Set(nId, rId, rStart, rEnd)
+      )
+    }
+
+    it("finds all id expression for given var") {
+      nHeader.idExpressions(n) should equalWithTracing(Set(nId))
+      nHeader.idExpressions(m) should equalWithTracing(Set.empty)
+      rHeader.idExpressions(r) should equalWithTracing(Set(rId, rStart, rEnd))
+      (nHeader ++ rHeader).idExpressions(n) should equalWithTracing(Set(nId))
+      (nHeader ++ rHeader).idExpressions(r) should equalWithTracing(Set(rId, rStart, rEnd))
+    }
 //
-//  it("can remove expressions") {
-//    nHeader -- nExprs should equal(RecordHeader.empty)
-//    nHeader -- Set(n) should equal(RecordHeader.empty)
-//    nHeader -- Set(nPropFoo) should equal(RecordHeader.empty.withExpr(n).withExpr(nLabelA).withExpr(nLabelB))
-//    nHeader -- Set(m) should equal(nHeader)
-//  }
+//    it("finds all id columns") {
+//      nHeader.idColumns should equalWithTracing(Set(nHeader.column(n)))
 //
-//  it("can modify alias and original expression") {
-//    val prop2 = EntityProperty(n, PropertyKey("bar"))(CTString)
-//    val aliasHeader = nHeader.withAlias(n as m)
-//    val withNewProp = aliasHeader.withExpr(prop2)
+//      rHeader.idColumns should equalWithTracing(
+//        Set(rHeader.column(r), rHeader.column(rStart), rHeader.column(rEnd))
+//      )
 //
-//    withNewProp.ownedBy(n) should equalWithTracing(nExprs + prop2)
-//    withNewProp.ownedBy(m) should equalWithTracing(mExprs + prop2.withOwner(m))
-//  }
-//
-//  it("can return all aliases for an expression") {
-//    val s = Var("nPropFoo_Alias")(nPropFoo.cypherType)
-//    val t = Var("nPropFoo_Alias")(nPropFoo.cypherType)
-//    val aliasHeader = nHeader
-//      .withAlias(n as m)
-//      .withAlias(nPropFoo as s)
-//      .withAlias(s as t)
-//
-//    aliasHeader.aliasesFor(n) should equalWithTracing(Set(m, n))
-//    aliasHeader.aliasesFor(m) should equalWithTracing(Set(m, n))
-//    aliasHeader.aliasesFor(nLabelA) should equalWithTracing(Set.empty)
-//    aliasHeader.aliasesFor(nPropFoo) should equalWithTracing(Set(s, t))
-//    aliasHeader.aliasesFor(s) should equalWithTracing(Set(s, t))
-//  }
-//
-//  it("adds a new child expr for all aliases of owner") {
-//    val prop2 = EntityProperty(n, PropertyKey("bar"))(CTString)
-//    val aliasHeader = nHeader
-//      .withAlias(n as m)
-//      .withExpr(prop2)
-//
-//    aliasHeader.ownedBy(n) should equalWithTracing(nExprs + prop2)
-//    aliasHeader.ownedBy(m) should equalWithTracing(mExprs + prop2.withOwner(m))
-//  }
-//
-//  it("finds all id expressions") {
-//    nHeader.idExpressions should equalWithTracing(Set(n))
-//
-//    rHeader.idExpressions should equalWithTracing(Set(r, rStart, rEnd))
-//
-//    (nHeader ++ rHeader).idExpressions should equalWithTracing(
-//      Set(n, r, rStart, rEnd)
-//    )
-//  }
-//
-//  it("finds all id expression for given var") {
-//    nHeader.idExpressions(n) should equalWithTracing(Set(n))
-//    nHeader.idExpressions(m) should equalWithTracing(Set.empty)
-//    rHeader.idExpressions(r) should equalWithTracing(Set(r, rStart, rEnd))
-//    (nHeader ++ rHeader).idExpressions(n) should equalWithTracing(Set(n))
-//    (nHeader ++ rHeader).idExpressions(r) should equalWithTracing(Set(r, rStart, rEnd))
-//  }
-//
-//  it("finds all id columns") {
-//    nHeader.idColumns should equalWithTracing(Set(nHeader.column(n)))
-//
-//    rHeader.idColumns should equalWithTracing(
-//      Set(rHeader.column(r), rHeader.column(rStart), rHeader.column(rEnd))
-//    )
-//
-//    val rExtendedHeader = nHeader ++ rHeader
-//    rExtendedHeader.idColumns should equalWithTracing(Set(
-//      rExtendedHeader.column(n),
-//      rExtendedHeader.column(r),
-//      rExtendedHeader.column(rStart),
-//      rExtendedHeader.column(rEnd))
-//    )
-//  }
-//
-//  it("finds all id columns for given var") {
-//    nHeader.idColumns(n) should equalWithTracing(Set(nHeader.column(n)))
-//
-//    rHeader.idColumns(r) should equalWithTracing(
-//      Set(rHeader.column(r), rHeader.column(rStart), rHeader.column(rEnd))
-//    )
-//
-//    val rExtendedHeader = nHeader ++ rHeader
-//    rExtendedHeader.idColumns(n) should equalWithTracing(Set(rExtendedHeader.column(n)))
-//    rExtendedHeader.idColumns(r) should equalWithTracing(Set(
-//      rExtendedHeader.column(r),
-//      rExtendedHeader.column(rStart),
-//      rExtendedHeader.column(rEnd))
-//    )
-//  }
-//
-//  it("finds entity properties") {
-//    nHeader.propertiesFor(n) should equalWithTracing(Set(nPropFoo))
-//    rHeader.propertiesFor(r) should equalWithTracing(Set(rPropFoo))
-//  }
-//
-//  it("finds start and end nodes") {
-//    rHeader.startNodeFor(r) should equalWithTracing(rStart)
-//    rHeader.endNodeFor(r) should equalWithTracing(rEnd)
-//  }
-//
-//  it("returns members for an entity") {
-//    nHeader.ownedBy(n) should equalWithTracing(nExprs)
-//    rHeader.ownedBy(r) should equalWithTracing(rExprs)
-//  }
-//
-//  it("can return transitive members for an entity") {
-//    val withSegment = nHeader.withAlias(n as nodeListSegment).select(nodeListSegment)
-//
-//    withSegment.ownedBy(nodeList) should equalWithTracing(withSegment.expressions)
-//  }
-//
-//  it("returns labels for a node") {
-//    nHeader.labelsFor(n) should equalWithTracing(Set(nLabelA, nLabelB))
-//    nHeader.labelsFor(m) should equalWithTracing(Set.empty)
-//  }
-//
-//  it("returns type for a rel") {
-//    rHeader.typesFor(r) should equalWithTracing(Set(rRelType))
-//    nHeader.typesFor(r) should equalWithTracing(Set.empty)
-//  }
-//
-//  it("returns all entity vars") {
-//    nHeader.entityVars should equalWithTracing(Set(n))
-//    (nHeader ++ rHeader).entityVars should equalWithTracing(Set(n, r))
-//  }
-//
-//  it("returns all node vars") {
-//    nHeader.nodeVars should equalWithTracing(Set(n))
-//    rHeader.nodeVars should equalWithTracing(Set.empty)
-//  }
-//
-//  it("returns all rel vars") {
-//    rHeader.relationshipVars should equalWithTracing(Set(r))
-//    nHeader.relationshipVars should equalWithTracing(Set.empty)
-//    relListHeader.relationshipVars should equalWithTracing(Set.empty)
-//  }
-//
-//  it("returns all rel entities") {
-//    rHeader.relationshipEntities should equalWithTracing(Set(r))
-//    nHeader.relationshipEntities should equalWithTracing(Set.empty)
-//    (nHeader ++ relListHeader).relationshipEntities should equalWithTracing(Set(relListSegment))
-//    (rHeader ++ relListHeader).relationshipEntities should equalWithTracing(Set(r, relListSegment))
-//  }
-//
-//  it("returns all node vars for a given node type") {
-//    nHeader.nodesForType(CTNode("A")) should equalWithTracing(Set(n))
-//    nHeader.nodesForType(CTNode("A", "B")) should equalWithTracing(Set(n))
-//    nHeader.nodesForType(CTNode("C")) should equalWithTracing(Set.empty)
-//  }
-//
-//  it("returns all node var that match a given node type exactly") {
-//    nHeader.nodesForType(CTNode("A", "B"), exactMatch = true) should equalWithTracing(Set(n))
-//    nHeader.nodesForType(CTNode("A"), exactMatch = true) should equalWithTracing(Set.empty)
-//    nHeader.nodesForType(CTNode("B"), exactMatch = true) should equalWithTracing(Set.empty)
-//  }
-//
-//  it("returns all rel vars for a given rel type") {
-//    rHeader.relationshipsForType(CTRelationship("R")) should equalWithTracing(Set(r))
-//    rHeader.relationshipsForType(CTRelationship("R", "S")) should equalWithTracing(Set(r))
-//    rHeader.relationshipsForType(CTRelationship("S")) should equalWithTracing(Set.empty)
-//    rHeader.relationshipsForType(CTRelationship) should equalWithTracing(Set(r))
-//  }
-//
-//  it("returns selected entity vars and their corresponding columns") {
-//    nHeader.select(Set(n)) should equal(nHeader)
-//    nHeader.select(Set(m)) should equal(RecordHeader.empty)
-//    (nHeader ++ mHeader).select(Set(n)) should equal(nHeader)
-//    (nHeader ++ mHeader).select(Set(m)) should equal(mHeader)
-//  }
-//
-//  it("returns the alias without the original when selecting an alias") {
-//    nHeader.select(Set(n as m)) should equal(nHeader.withAlias(n as m) -- nHeader.expressions)
-//  }
-//
-//  it("returns selected entity and alias vars and their corresponding columns") {
-//    val s = Var("nPropFoo_Alias")(nPropFoo.cypherType)
-//    val aliasHeader = nHeader
-//      .withAlias(n as m)
-//      .withAlias(nPropFoo as s)
-//
-//    aliasHeader.select(Set(s)) should equal(RecordHeader(Map(
-//      s -> nHeader.column(nPropFoo)
-//    )))
-//
-//    aliasHeader.select(Set(n, s)) should equal(nHeader.withAlias(nPropFoo as s))
-//    aliasHeader.select(Set(n, m)) should equal(nHeader.withAlias(n as m))
-//    aliasHeader.select(Set(n, m, s)) should equal(aliasHeader)
-//  }
-//
-//  it("returns original column names after cascaded select") {
-//    val aliasHeader1 = nHeader.withAlias(n as m) // WITH n as m
-//    val selectHeader1 = aliasHeader1.select(Set(m))
-//    val aliasHeader2 = selectHeader1.withAlias(m as o) // WITH m as o
-//    val selectHeader2 = aliasHeader2.select(Set[Expr](o))
-//
-//    selectHeader2.ownedBy(o).map(selectHeader2.column) should equal(nHeader.ownedBy(n).map(nHeader.column))
-//  }
-//
-//  it("returns original column names after cascaded select with 1:n aliasing") {
-//    val aliasHeader = nHeader.withAlias(n as m).withAlias(n as o) // WITH n, n AS m, n AS o
-//    val selectHeader = aliasHeader.select(Set[Expr](n, m, o))
-//
-//    selectHeader.ownedBy(n).map(selectHeader.column) should equal(nHeader.ownedBy(n).map(nHeader.column))
-//    selectHeader.ownedBy(m).map(selectHeader.column) should equal(nHeader.ownedBy(n).map(nHeader.column))
-//    selectHeader.ownedBy(o).map(selectHeader.column) should equal(nHeader.ownedBy(n).map(nHeader.column))
-//  }
-//
-//  it("returns original column names after cascaded select with property aliases") {
-//    val s = Var("nPropFoo_Alias")(nPropFoo.cypherType)
-//    val t = Var("nPropFoo_Alias")(nPropFoo.cypherType)
-//    val aliasHeader1 = nHeader.withAlias(nPropFoo as s) // WITH n.foo AS s
-//    val selectHeader1 = aliasHeader1.select(Set(s))
-//    val aliasHeader2 = selectHeader1.withAlias(s as t) // WITH s AS t
-//    val selectHeader2 = aliasHeader2.select(Set(t))
-//
-//    selectHeader1.column(s) should equal(nHeader.column(nPropFoo))
-//    selectHeader2.column(t) should equal(nHeader.column(nPropFoo))
-//  }
-//
-//  it("supports reusing previously used vars") {
-//    val aliasHeader1 = nHeader.withAlias(n as m) // WITH n AS m
-//    val selectHeader1 = aliasHeader1.select(Set(m))
-//    val aliasHeader2 = selectHeader1.withAlias(m as n) // WITH m AS n
-//    val selectHeader2 = aliasHeader2.select(Set(n))
-//
-//    selectHeader2 should equal(nHeader)
-//  }
-//
-//  it("supports reusing previously used vars with same name but different type") {
-//    val n2 = Var("n")(nPropFoo.cypherType)
-//    val mPropFoo = nPropFoo.withOwner(m)
-//
-//    val aliasHeader1 = nHeader.withAlias(n as m) // WITH n AS m
-//    val selectHeader1 = aliasHeader1.select(Set(m))
-//    val aliasHeader2 = selectHeader1.withAlias(mPropFoo as n2) // WITH m.foo AS n
-//    val selectHeader2 = aliasHeader2.select(Set(n2))
-//
-//    selectHeader2.column(n2) should equal(nHeader.column(nPropFoo))
-//  }
-//
-//  it("renames columns") {
-//    val newColumnName = "newName"
-//    val modifiedHeader = nHeader.withColumnRenamed(nPropFoo, newColumnName)
-//    modifiedHeader.column(nPropFoo) should equal(newColumnName)
-//  }
-//
-//  it("renames aliases columns") {
-//    val newColumnName = "newName"
-//    val modifiedHeader = nHeader.withAlias(n as m).withColumnRenamed(nPropFoo, newColumnName)
-//
-//    modifiedHeader.column(nPropFoo) should equal(newColumnName)
-//    modifiedHeader.column(nPropFoo.withOwner(m)) should equal(newColumnName)
-//  }
-//
-//  it("renames multiple columns") {
-//    val newName1 = "foo"
-//    val newName2 = "lalala"
-//    val modifiedHeader = nHeader.withColumnsRenamed(Seq(nPropFoo -> newName1, nLabelA -> newName2))
-//    modifiedHeader.column(nPropFoo) should equal(newName1)
-//    modifiedHeader.column(nLabelA) should equal(newName2)
-//  }
-//
-//  it("replaces multiple columns") {
-//    val aliasHeader = nHeader.withAlias(n as m) // WITH n AS m
-//    val replaceHeader = aliasHeader.withColumnsReplaced(Map(nPropFoo -> "nFoo", mPropFoo -> "mFoo"))
-//
-//    aliasHeader.columns.size should equal(nExprs.size)
-//    replaceHeader.columns.size should equal(nExprs.size + 1)
-//  }
-//
-//  describe("join") {
-//    it("joins two none conflicting headers") {
-//      nHeader.join(mHeader) should equal(nHeader ++ mHeader)
+//      val rExtendedHeader = nHeader ++ rHeader
+//      rExtendedHeader.idColumns should equalWithTracing(Set(
+//        rExtendedHeader.column(n),
+//        rExtendedHeader.column(r),
+//        rExtendedHeader.column(rStart),
+//        rExtendedHeader.column(rEnd))
+//      )
 //    }
-//
-//    it("joins record headers with overlapping column names") {
-//      val aliased = nHeader.withAlias(n as m).select(m)
-//      an[IllegalArgumentException] should be thrownBy nHeader.join(aliased)
-//    }
-//
-//    it("joins record headers with overlapping column names and multiple expressions per column") {
-//      val aliased = nHeader.withAlias(n as m).withAlias(n as o).select(m, o)
-//      an[IllegalArgumentException] should be thrownBy nHeader.join(aliased)
-//    }
-//
-//    it("raises an error when joining header with overlapping expressions"){
-//      intercept[org.opencypher.okapi.impl.exception.IllegalArgumentException] {
-//        nHeader join nHeader
-//      }
-//    }
-//  }
-//
-//  describe("from") {
-//    it("can build a RecordHeader from a Relationship type") {
-//      val relType = CTRelationship("FOO", "BAR")
-//
-//      val v = Var("rel")(relType)
-//
-//      val expected = RecordHeader.empty
-//        .withExpr(v)
-//        .withExpr(StartNode(v)(CTIdentity))
-//        .withExpr(EndNode(v)(CTIdentity))
-//        .withExpr(HasType(v, RelType("FOO")))
-//        .withExpr(HasType(v, RelType("BAR")))
-//
-//      RecordHeader.from(v) should equal(expected)
-//    }
-//
-//    it("can build a RecordHeader from a node type") {
-//      val nodeType = CTNode("FOO", "BAR")
-//
-//      val v = Var("node")(nodeType)
-//
-//      val expected = RecordHeader.empty
-//        .withExpr(v)
-//        .withExpr(HasLabel(v, Label("FOO")))
-//        .withExpr(HasLabel(v, Label("BAR")))
-//
-//      RecordHeader.from(v) should equal(expected)
-//    }
-//  }
+  //
+  //  it("finds all id columns for given var") {
+  //    nHeader.idColumns(n) should equalWithTracing(Set(nHeader.column(n)))
+  //
+  //    rHeader.idColumns(r) should equalWithTracing(
+  //      Set(rHeader.column(r), rHeader.column(rStart), rHeader.column(rEnd))
+  //    )
+  //
+  //    val rExtendedHeader = nHeader ++ rHeader
+  //    rExtendedHeader.idColumns(n) should equalWithTracing(Set(rExtendedHeader.column(n)))
+  //    rExtendedHeader.idColumns(r) should equalWithTracing(Set(
+  //      rExtendedHeader.column(r),
+  //      rExtendedHeader.column(rStart),
+  //      rExtendedHeader.column(rEnd))
+  //    )
+  //  }
+  //
+    it("finds entity properties") {
+      nHeader.propertiesFor(n) should equalWithTracing(Set(nPropFoo))
+      rHeader.propertiesFor(r) should equalWithTracing(Set(rPropFoo))
+    }
+
+    it("finds start and end nodes") {
+      rHeader.startNodeFor(r) should equalWithTracing(rStart)
+      rHeader.endNodeFor(r) should equalWithTracing(rEnd)
+    }
+
+    it("returns members for an entity") {
+      nHeader.expressionsFor(n) should equalWithTracing(nExprs)
+      rHeader.expressionsFor(r) should equalWithTracing(rExprs)
+    }
+
+    it("returns labels for a node") {
+      nHeader.labelsFor(n) should equalWithTracing(Set(nLabelA, nLabelB))
+      nHeader.labelsFor(m) should equalWithTracing(Set.empty)
+    }
+
+    it("returns type for a rel") {
+      rHeader.typesFor(r) should equalWithTracing(Set(rRelType))
+      nHeader.typesFor(r) should equalWithTracing(Set.empty)
+    }
+
+    it("returns all entity vars") {
+      nHeader.entityVars should equalWithTracing(Set(n))
+      (nHeader ++ rHeader).entityVars should equalWithTracing(Set(n, r))
+    }
+
+    it("returns all node vars") {
+      nHeader.nodeVars should equalWithTracing(Set(n))
+      rHeader.nodeVars should equalWithTracing(Set.empty)
+    }
+
+    it("returns all rel vars") {
+      rHeader.relationshipVars should equalWithTracing(Set(r))
+      nHeader.relationshipVars should equalWithTracing(Set.empty)
+      relListHeader.relationshipVars should equalWithTracing(Set.empty)
+    }
+
+    it("returns all rel entities") {
+      rHeader.relationshipEntities should equalWithTracing(Set(r))
+      nHeader.relationshipEntities should equalWithTracing(Set.empty)
+    }
+
+    it("returns all node vars for a given node type") {
+      nHeader.nodesForType(CTNode("A")) should equalWithTracing(Set(n))
+      nHeader.nodesForType(CTNode("A", "B")) should equalWithTracing(Set(n))
+      nHeader.nodesForType(CTNode("C")) should equalWithTracing(Set.empty)
+    }
+
+    it("returns all node var that match a given node type exactly") {
+      nHeader.nodesForType(CTNode("A", "B"), exactMatch = true) should equalWithTracing(Set(n))
+      nHeader.nodesForType(CTNode("A"), exactMatch = true) should equalWithTracing(Set.empty)
+      nHeader.nodesForType(CTNode("B"), exactMatch = true) should equalWithTracing(Set.empty)
+    }
+
+    it("returns all rel vars for a given rel type") {
+      rHeader.relationshipsForType(CTRelationship("R")) should equalWithTracing(Set(r))
+      rHeader.relationshipsForType(CTRelationship("R", "S")) should equalWithTracing(Set(r))
+      rHeader.relationshipsForType(CTRelationship("S")) should equalWithTracing(Set.empty)
+      rHeader.relationshipsForType(CTRelationship) should equalWithTracing(Set(r))
+    }
+
+    it("returns selected entity vars and their corresponding columns") {
+      nHeader.select(Set(n)) should equal(nHeader)
+      nHeader.select(Set(m)) should equal(RecordHeader2.empty)
+      (nHeader ++ mHeader).select(Set(n)) should equal(nHeader)
+      (nHeader ++ mHeader).select(Set(m)) should equal(mHeader)
+    }
+
+    it("returns the alias without the original when selecting an alias") {
+      nHeader.select(Set(n as m)) should equalWithTracing(nHeader.withAlias(n as m) -- Set(n))
+    }
+
+    it("returns selected entity and alias vars and their corresponding columns") {
+      val s = Var("s")(nPropFoo.cypherType)
+      val aliasHeader = nHeader
+        .withAlias(n as m)
+        .withAlias(nPropFoo as s)
+
+      aliasHeader.select(Set(s)) should equal(RecordHeader2.empty.withExpr(Var("s")(nPropFoo.cypherType)))
+
+      aliasHeader.select(Set(n, s)) should equal(nHeader.withAlias(nPropFoo as s))
+      aliasHeader.select(Set(n, m)) should equal(nHeader.withAlias(n as m))
+      aliasHeader.select(Set(n, m, s)) should equal(aliasHeader)
+    }
+
+    it("returns original column names after cascaded select") {
+      val aliasHeader1 = nHeader.withAlias(n as m) // WITH n as m
+      val selectHeader1 = aliasHeader1.select(Set(m))
+      val aliasHeader2 = selectHeader1.withAlias(m as o) // WITH m as o
+      val selectHeader2 = aliasHeader2.select(Set[Expr](o))
+
+      selectHeader2.expressionsFor(o).map(selectHeader2.column) should equal(nHeader.expressionsFor(n).map(nHeader.column))
+    }
+
+    it("returns original column names after cascaded select with 1:n aliasing") {
+      val aliasHeader = nHeader.withAlias(n as m).withAlias(n as o) // WITH n, n AS m, n AS o
+      val selectHeader = aliasHeader.select(Set[Expr](n, m, o))
+
+      selectHeader.expressionsFor(n).map(selectHeader.column) should equal(nHeader.expressionsFor(n).map(nHeader.column))
+      selectHeader.expressionsFor(m).map(selectHeader.column) should equal(nHeader.expressionsFor(n).map(nHeader.column))
+      selectHeader.expressionsFor(o).map(selectHeader.column) should equal(nHeader.expressionsFor(n).map(nHeader.column))
+    }
+
+    it("returns original column names after cascaded select with property aliases") {
+      val s = Var("nPropFoo_Alias_s")(nPropFoo.cypherType)
+      val t = Var("nPropFoo_Alias_t")(nPropFoo.cypherType)
+      val aliasHeader1 = nHeader.withAlias(nPropFoo as s) // WITH n.foo AS s
+      val selectHeader1 = aliasHeader1.select(Set(s))
+      val aliasHeader2 = selectHeader1.withAlias(s as t) // WITH s AS t
+      val selectHeader2 = aliasHeader2.select(Set(t))
+
+      selectHeader1.column(s) should equal("nPropFoo_Alias_s")
+      selectHeader2.column(t) should equal("nPropFoo_Alias_s")
+    }
+
+    it("supports reusing previously used vars") {
+      val aliasHeader1 = nHeader.withAlias(n as m) // WITH n AS m
+      val selectHeader1 = aliasHeader1.select(Set(m))
+      val aliasHeader2 = selectHeader1.withAlias(m as n) // WITH m AS n
+      val selectHeader2 = aliasHeader2.select(Set(n))
+
+      selectHeader2 should equal(nHeader)
+    }
+
+    it("supports reusing previously used vars with same name but different type") {
+      val n2 = Var("n")(nPropFoo.cypherType)
+      val mPropFoo = nPropFoo.withOwner(m)
+
+      val aliasHeader1 = nHeader.withAlias(n as m) // WITH n AS m
+      val selectHeader1 = aliasHeader1.select(Set(m))
+      val aliasHeader2 = selectHeader1.withAlias(mPropFoo as n2) // WITH m.foo AS n
+      val selectHeader2 = aliasHeader2.select(Set(n2))
+
+      selectHeader2.column(n2) should equal("n")
+    }
+  //
+  //  it("renames columns") {
+  //    val newColumnName = "newName"
+  //    val modifiedHeader = nHeader.withColumnRenamed(nPropFoo, newColumnName)
+  //    modifiedHeader.column(nPropFoo) should equal(newColumnName)
+  //  }
+  //
+  //  it("renames aliases columns") {
+  //    val newColumnName = "newName"
+  //    val modifiedHeader = nHeader.withAlias(n as m).withColumnRenamed(nPropFoo, newColumnName)
+  //
+  //    modifiedHeader.column(nPropFoo) should equal(newColumnName)
+  //    modifiedHeader.column(nPropFoo.withOwner(m)) should equal(newColumnName)
+  //  }
+  //
+  //  it("renames multiple columns") {
+  //    val newName1 = "foo"
+  //    val newName2 = "lalala"
+  //    val modifiedHeader = nHeader.withColumnsRenamed(Seq(nPropFoo -> newName1, nLabelA -> newName2))
+  //    modifiedHeader.column(nPropFoo) should equal(newName1)
+  //    modifiedHeader.column(nLabelA) should equal(newName2)
+  //  }
+  //
+  //  it("replaces multiple columns") {
+  //    val aliasHeader = nHeader.withAlias(n as m) // WITH n AS m
+  //    val replaceHeader = aliasHeader.withColumnsReplaced(Map(nPropFoo -> "nFoo", mPropFoo -> "mFoo"))
+  //
+  //    aliasHeader.columns.size should equal(nExprs.size)
+  //    replaceHeader.columns.size should equal(nExprs.size + 1)
+  //  }
+  //
+  describe("join") {
+    it("joins two none conflicting headers") {
+      nHeader.join(mHeader) should equal(nHeader ++ mHeader)
+    }
+
+    it("joins record headers with overlapping column names") {
+      val headerA = RecordHeader2(Set(RecordHeaderEntry(Var("a")(CTAny), "a")))
+      val headerB = RecordHeader2(Set(RecordHeaderEntry(Var("b")(CTAny), "a")))
+      an[IllegalArgumentException] should be thrownBy headerA.join(headerB)
+    }
+
+    it("raises an error when joining header with overlapping expressions") {
+      intercept[org.opencypher.okapi.impl.exception.IllegalArgumentException] {
+        nHeader join nHeader
+      }
+    }
+  }
+  //
+  //  describe("from") {
+  //    it("can build a RecordHeader from a Relationship type") {
+  //      val relType = CTRelationship("FOO", "BAR")
+  //
+  //      val v = Var("rel")(relType)
+  //
+  //      val expected = RecordHeader.empty
+  //        .withExpr(v)
+  //        .withExpr(StartNode(v)(CTIdentity))
+  //        .withExpr(EndNode(v)(CTIdentity))
+  //        .withExpr(HasType(v, RelType("FOO")))
+  //        .withExpr(HasType(v, RelType("BAR")))
+  //
+  //      RecordHeader.from(v) should equal(expected)
+  //    }
+  //
+  //    it("can build a RecordHeader from a node type") {
+  //      val nodeType = CTNode("FOO", "BAR")
+  //
+  //      val v = Var("node")(nodeType)
+  //
+  //      val expected = RecordHeader.empty
+  //        .withExpr(v)
+  //        .withExpr(HasLabel(v, Label("FOO")))
+  //        .withExpr(HasLabel(v, Label("BAR")))
+  //
+  //      RecordHeader.from(v) should equal(expected)
+  //    }
+  //  }
 }

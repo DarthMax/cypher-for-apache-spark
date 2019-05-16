@@ -184,6 +184,15 @@ final case class SimpleVar(name: String)(val cypherType: CypherType) extends Ret
 
 }
 
+final case class Identity(v: Var) extends Expr {
+  override def cypherType: CypherType = childNullPropagatesTo(CTIdentity)
+
+  override def withoutType: String = "id"
+
+  override def owner: Option[Var] = Some(v)
+  override def withOwner(v: Var): Expr = Identity(v)
+}
+
 final case class StartNode(rel: Expr)(val cypherType: CypherType) extends Expr {
 
   type This = StartNode
@@ -629,6 +638,11 @@ sealed trait UnaryFunctionExpr extends FunctionExpr {
 
 final case class Id(expr: Expr) extends UnaryFunctionExpr {
   override val cypherType: CypherType = childNullPropagatesTo(CTIdentity)
+
+  override def owner: Option[Var] = expr match {
+    case v: Var => Some(v)
+    case _ => None
+  }
 }
 
 object PrefixId {
