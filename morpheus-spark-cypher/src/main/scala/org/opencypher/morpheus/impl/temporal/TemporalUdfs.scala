@@ -29,7 +29,7 @@ package org.opencypher.morpheus.impl.temporal
 import java.sql.{Date, Timestamp}
 import java.time.temporal.{ChronoField, IsoFields, TemporalField}
 
-import org.apache.logging.log4j.scala.Logging
+import org.opencypher.relocated.org.apache.logging.log4j.scala.Logging
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.unsafe.types.CalendarInterval

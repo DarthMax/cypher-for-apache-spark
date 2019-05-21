@@ -26,7 +26,7 @@
  */
 package org.opencypher.morpheus.api.io.neo4j.sync
 
-import org.apache.logging.log4j.scala.Logging
+import org.opencypher.relocated.org.apache.logging.log4j.scala.Logging
 import org.apache.spark.sql.Row
 import org.neo4j.driver.internal.value.ListValue
 import org.neo4j.driver.v1.{Value, Values}

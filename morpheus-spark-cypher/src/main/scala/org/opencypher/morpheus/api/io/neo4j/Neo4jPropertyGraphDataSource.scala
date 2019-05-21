@@ -26,7 +26,7 @@
  */
 package org.opencypher.morpheus.api.io.neo4j
 
-import org.apache.logging.log4j.scala.Logging
+import org.opencypher.relocated.org.apache.logging.log4j.scala.Logging
 import org.apache.spark.sql.types.{BinaryType, LongType, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.unsafe.types.CalendarInterval

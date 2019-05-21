@@ -29,7 +29,7 @@ package org.opencypher.morpheus.api.io
 import org.opencypher.morpheus.api.io.StorageFormat.nonFileFormatNames
 import org.opencypher.okapi.impl.exception.IllegalArgumentException
 import org.opencypher.okapi.impl.util.JsonUtils.FlatOption._
-import ujson._
+import org.opencypher.relocated.ujson._
 
 trait StorageFormat {
   def name: String = getClass.getSimpleName.dropRight("Format$".length).toLowerCase

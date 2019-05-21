@@ -5,6 +5,8 @@ description = 'Okapi Shade contains the full Okapi stack and its relocated depen
 dependencies {
     compile project(':okapi-relational')
     compile project(':okapi-tck')
+    compile project(':okapi-neo4j-io')
+    compile project(':graph-ddl')
 }
 
 ext.excludedDependencyGroups = [

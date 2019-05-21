@@ -27,7 +27,7 @@
 package org.opencypher.morpheus.api.io.sql
 
 import org.opencypher.morpheus.api.io.{FileFormat, HiveFormat, JdbcFormat, StorageFormat}
-import ujson.Value
+import org.opencypher.relocated.ujson.Value
 
 import scala.util.{Failure, Success, Try}
 
@@ -82,7 +82,7 @@ object SqlDataSourceConfig {
     * @param driver  class name of the JDBC driver to use for the JDBC connection
     * @param options extra options passed to Spark when configuring the reader
     */
-  @upickle.implicits.key("jdbc")
+  @org.opencypher.relocated.upickle.implicits.key("jdbc")
   case class Jdbc(
     url: String,
     driver: String,
@@ -92,7 +92,7 @@ object SqlDataSourceConfig {
   /** Configures a data source that reads tables from Hive
     * @note The Spark session needs to be configured with `.enableHiveSupport()`
     */
-  @upickle.implicits.key("hive")
+  @org.opencypher.relocated.upickle.implicits.key("hive")
   case object Hive extends SqlDataSourceConfig(HiveFormat, Map.empty)
 
   /** Configures a data source that reads tables from files
@@ -101,7 +101,7 @@ object SqlDataSourceConfig {
     * @param basePath the root folder used for file based formats
     * @param options  extra options passed to Spark when configuring the reader
     */
-  @upickle.implicits.key("file")
+  @org.opencypher.relocated.upickle.implicits.key("file")
   case class File(
     override val format: FileFormat,
     basePath: Option[String] = None,

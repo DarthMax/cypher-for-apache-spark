@@ -31,6 +31,7 @@ import org.opencypher.morpheus.testing.MorpheusTestSuite
 import org.opencypher.morpheus.testing.fixture.TeamDataFixture
 import org.opencypher.okapi.api.util.ZeppelinSupport._
 import org.opencypher.okapi.api.value.CypherValue
+import org.opencypher.relocated.ujson._
 
 class ZeppelinSupportTest extends MorpheusTestSuite with TeamDataFixture with ScanGraphInit {
   // scalastyle:off line.contains.tab
@@ -141,18 +142,18 @@ class ZeppelinSupportTest extends MorpheusTestSuite with TeamDataFixture with Sc
          |  "directed": true
          |}""".stripMargin
 
-    val act = sorted(ujson.read(asGraph))
-    val exp = sorted(ujson.read(expected))
+    val act = sorted(read(asGraph))
+    val exp = sorted(read(expected))
     act shouldEqual exp
   }
 
-  def sorted(v: ujson.Value): ujson.Value = v match {
-    case ujson.Obj(x) =>
-      val res = ujson.Obj()
+  def sorted(v: Value): Value = v match {
+    case Obj(x) =>
+      val res = Obj()
       x.mapValues(sorted(_)).toSeq.sortBy(_._1).foreach(e => res.value.put(e._1, e._2))
       res
-    case ujson.Arr(x) =>
-      val res = ujson.Arr()
+    case Arr(x) =>
+      val res = Arr()
       x.map(sorted(_)).sortBy(_.toString).foreach(e => res.value.append(e))
       res
     case _ => v
@@ -161,7 +162,7 @@ class ZeppelinSupportTest extends MorpheusTestSuite with TeamDataFixture with Sc
   it("supports Zeppelin network representation") {
     val graph = morpheus.graphs.create(personTable, bookTable, readsTable, knowsTable, influencesTable)
     val asJson = graph.toZeppelinJson()(CypherValue.Format.defaultValueFormatter)
-    val expected = ujson.read(
+    val expected = read(
       s"""
          |{
          |  "nodes": [

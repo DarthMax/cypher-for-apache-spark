@@ -27,17 +27,17 @@
 package org.opencypher.morpheus.api.io.metadata
 
 import org.opencypher.morpheus.api.io.metadata.MorpheusGraphMetaData._
-import upickle.default._
+import org.opencypher.relocated.upickle.default._
 
 object MorpheusGraphMetaData {
   implicit def rw: ReadWriter[MorpheusGraphMetaData] = macroRW
 
   def fromJson(jsonString: String): MorpheusGraphMetaData =
-    upickle.default.read[MorpheusGraphMetaData](jsonString)
+    org.opencypher.relocated.upickle.default.read[MorpheusGraphMetaData](jsonString)
 }
 
 case class MorpheusGraphMetaData(tableStorageFormat: String) {
 
   def toJson: String =
-    upickle.default.write[MorpheusGraphMetaData](this, indent = 4)
+    org.opencypher.relocated.upickle.default.write[MorpheusGraphMetaData](this, indent = 4)
 }

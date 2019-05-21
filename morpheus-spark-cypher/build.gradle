@@ -2,7 +2,7 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 description = 'Morpheus: Cypher for Apache Spark'
 
-if (project.hasProperty('testOkapiShade')) {
+//if (project.hasProperty('testOkapiShade')) {
     configurations {
         compile {
             exclude(group: 'org.opencypher', module: 'okapi-api')
@@ -10,6 +10,16 @@ if (project.hasProperty('testOkapiShade')) {
             exclude(group: 'org.opencypher', module: 'okapi-logical')
             exclude(group: 'org.opencypher', module: 'okapi-relational')
             exclude(group: 'org.opencypher', module: 'okapi-trees')
+            exclude(group: 'org.opencypher', module: 'okapi-neo4j-io')
+            exclude(group: 'org.opencypher', module: 'graph-ddl')
+            exclude(group: 'com.lihaoyi', module: "upickle".scala())
+            exclude(group: 'org.typelevel', module: "cats-core".scala())
+            exclude(group: 'org.neo4j.driver', module: 'neo4j-java-driver')
+            exclude(group: 'com.lihaoyi', module: 'fastparse'.scala())
+            exclude(group: 'org.apache.logging.log4j', module: 'log4j-api-scala'.scala())
+            exclude(group: 'org.apache.logging.log4j', module: 'log4j-api')
+
+
         }
     }
     repositories {
@@ -21,7 +31,7 @@ if (project.hasProperty('testOkapiShade')) {
         compile group: 'org.opencypher', name: 'okapi-shade', version: ver.self
     }
     tasks.compileScala.dependsOn {project(':okapi-shade').tasks.publishShadePublicationToBuildDirRepository}
-}
+//}
 
 dependencies {
     compile project(':okapi-relational')
